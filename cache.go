@@ -12,19 +12,20 @@ type Cache struct {
 	items map[string]*Item
 }
 
-// Set is a thread-safe way to add new items to the map
-func (cache *Cache) Set(key string, data string) {
-	cache.mutex.Lock()
+func (cache *Cache) set(key string, data string) {
 	item := &Item{data: data}
 	item.touch(cache.ttl)
 	cache.items[key] = item
+}
+
+// Set is a thread-safe way to add new items to the map
+func (cache *Cache) Set(key string, data string) {
+	cache.mutex.Lock()
+	cache.set(key, data)
 	cache.mutex.Unlock()
 }
 
-// Get is a thread-safe way to lookup items
-// Every lookup, also touches the item, hence extending it's life
-func (cache *Cache) Get(key string) (data string, found bool) {
-	cache.mutex.Lock()
+func (cache *Cache) get(key string) (data string, found bool) {
 	item, exists := cache.items[key]
 	if !exists || item.expired() {
 		data = ""
@@ -34,7 +35,29 @@ func (cache *Cache) Get(key string) (data string, found bool) {
 		data = item.data
 		found = true
 	}
+
+	return
+}
+
+// Get is a thread-safe way to lookup items
+// Every lookup, also touches the item, hence extending it's life
+func (cache *Cache) Get(key string) (data string, found bool) {
+	cache.mutex.Lock()
+	data, found = cache.get(key)
 	cache.mutex.Unlock()
+	return
+}
+
+// GetOrSet in a thread-safe manner - inspired by sync.Map#LoadOrStore
+func (cache *Cache) GetOrSet(key string, newData string) (data string, found bool) {
+	cache.mutex.Lock()
+	defer cache.mutex.Unlock()
+	if data, found = cache.get(key); found {
+		return
+	}
+
+	cache.set(key, newData)
+	data = newData // In case it helps our caller!
 	return
 }
 

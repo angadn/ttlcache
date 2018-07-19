@@ -26,6 +26,26 @@ func TestGet(t *testing.T) {
 	}
 }
 
+func TestGetOrSet(t *testing.T) {
+	cache := &Cache{
+		ttl:   time.Second,
+		items: map[string]*Item{},
+	}
+
+	data, exists := cache.GetOrSet("hello", "foo")
+	if exists {
+		t.Errorf("Expected empty cache to return no data")
+	}
+
+	data, exists = cache.GetOrSet("hello", "world")
+	if !exists {
+		t.Errorf("Expected cache to return data for `hello`")
+	}
+	if data != "foo" {
+		t.Errorf("Expected cache to return `foo` for `hello`")
+	}
+}
+
 func TestExpiration(t *testing.T) {
 	cache := &Cache{
 		ttl:   time.Second,
